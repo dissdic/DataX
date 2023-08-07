@@ -119,17 +119,27 @@ public final class WriterUtil {
         }
         // && writeMode.trim().toLowerCase().startsWith("replace")
         String writeDataSqlTemplate;
-        if (forceUseUpdate ||
-                ((dataBaseType == DataBaseType.MySql || dataBaseType == DataBaseType.Tddl) && writeMode.trim().toLowerCase().startsWith("update"))
-                ) {
-            //update只在mysql下使用
 
-            writeDataSqlTemplate = new StringBuilder()
-                    .append("INSERT INTO %s (").append(StringUtils.join(columnHolders, ","))
-                    .append(") VALUES(").append(StringUtils.join(valueHolders, ","))
-                    .append(")")
-                    .append(onDuplicateKeyUpdateString(columnHolders))
-                    .toString();
+        if (forceUseUpdate ||
+                ((dataBaseType == DataBaseType.MySql || dataBaseType == DataBaseType.Tddl || dataBaseType == DataBaseType.PostgreSQL) && writeMode.trim().toLowerCase().startsWith("update"))
+                ) {
+            if(dataBaseType == DataBaseType.PostgreSQL){
+                //单独写postgresql逻辑
+                writeDataSqlTemplate = new StringBuilder()
+                        .append("INSERT INTO %s (").append(StringUtils.join(columnHolders, ","))
+                        .append(") VALUES(").append(StringUtils.join(valueHolders, ","))
+                        .append(")")
+                        .append(onDuplicateKeyUpdateStringForPostgresql(columnHolders))
+                        .toString();
+            }else{
+                //update只在mysql下使用
+                writeDataSqlTemplate = new StringBuilder()
+                        .append("INSERT INTO %s (").append(StringUtils.join(columnHolders, ","))
+                        .append(") VALUES(").append(StringUtils.join(valueHolders, ","))
+                        .append(")")
+                        .append(onDuplicateKeyUpdateString(columnHolders))
+                        .toString();
+            }
         } else {
 
             //这里是保护,如果其他错误的使用了update,需要更换为replace
@@ -143,6 +153,28 @@ public final class WriterUtil {
         }
 
         return writeDataSqlTemplate;
+    }
+
+    public static String onDuplicateKeyUpdateStringForPostgresql(List<String> columnHolders){
+        if (columnHolders==null || columnHolders.size()<1){
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(" on conflict do update set");
+        List<String> updateList = new ArrayList<>();
+        for (String columnHolder : columnHolders) {
+            if(columnHolder.equalsIgnoreCase("id")){
+                continue;
+            }
+            updateList.add(columnHolder+" = "+"excluded."+columnHolder);
+        }
+        if(updateList.isEmpty()){
+            return "";
+        }
+        String updateSql = String.join(",",updateList);
+        sb.append(updateSql);
+        LOG.debug("POSTGRESQL的SQL:"+sb.toString());
+        return sb.toString();
     }
 
     public static String onDuplicateKeyUpdateString(List<String> columnHolders){
