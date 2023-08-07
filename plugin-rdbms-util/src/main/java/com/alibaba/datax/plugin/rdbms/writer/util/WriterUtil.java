@@ -160,7 +160,7 @@ public final class WriterUtil {
             return "";
         }
         StringBuilder sb = new StringBuilder();
-        sb.append(" on conflict do update set");
+        sb.append(" on conflict do update set ");
         List<String> updateList = new ArrayList<>();
         for (String columnHolder : columnHolders) {
             if(columnHolder.equalsIgnoreCase("id")){
